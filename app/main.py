@@ -5,7 +5,6 @@ from typing import Annotated
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -55,10 +54,10 @@ def clothing_edit_mask(size: tuple[int, int]) -> Image.Image:
     from PIL import ImageDraw
     draw = ImageDraw.Draw(alpha)
     polygon = [
-        (int(width * 0.12), int(height * 0.34)),
-        (int(width * 0.30), int(height * 0.30)),
-        (int(width * 0.70), int(height * 0.30)),
-        (int(width * 0.88), int(height * 0.34)),
+        (int(width * 0.08), int(height * 0.49)),
+        (int(width * 0.22), int(height * 0.42)),
+        (int(width * 0.78), int(height * 0.42)),
+        (int(width * 0.92), int(height * 0.49)),
         (int(width * 0.98), int(height * 0.98)),
         (int(width * 0.02), int(height * 0.98)),
     ]
