@@ -1,20 +1,26 @@
 import base64
 import io
 import os
-import tempfile
 from typing import Annotated
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
-from gradio_client import Client, handle_file
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 load_dotenv()
-app = FastAPI(title="UNIFORM AI", version="1.1.0")
+app = FastAPI(title="UNIFORM AI", version="2.0.0")
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-image").strip()
+GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "150"))
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-STYLES = {"classic", "modern", "formal"}
+STYLES = {
+    "classic": "classic neat school uniform: a clean white shirt with a dark navy blazer or cardigan, understated and realistic",
+    "modern": "modern school uniform: a crisp light shirt with a tasteful dark navy jacket and a simple coordinated tie",
+    "formal": "formal school uniform: a white collared shirt, dark tailored blazer and a simple conservative tie",
+}
 
 
 def prepare_image(raw: bytes) -> Image.Image:
@@ -35,13 +41,29 @@ def prepare_image(raw: bytes) -> Image.Image:
         top = (height - new_height) // 2
         image = image.crop((0, top, width, top + new_height))
 
-    image = ImageOps.fit(image, (768, 1024), method=Image.Resampling.LANCZOS)
-    return image
+    return ImageOps.fit(image, (768, 1024), method=Image.Resampling.LANCZOS)
+
+
+def extract_generated_image(payload: dict) -> bytes:
+    candidates = payload.get("candidates") or []
+    for candidate in candidates:
+        parts = (candidate.get("content") or {}).get("parts") or []
+        for part in parts:
+            inline = part.get("inlineData") or part.get("inline_data")
+            if inline and inline.get("data"):
+                return base64.b64decode(inline["data"], validate=True)
+    raise ValueError("Gemini response did not contain an image.")
 
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "uniform-ai", "provider": "huggingface-zerogpu"}
+    return {
+        "status": "ok",
+        "service": "uniform-ai",
+        "provider": "google-gemini",
+        "model": GEMINI_MODEL,
+        "configured": bool(GEMINI_API_KEY),
+    }
 
 
 @app.post("/api/generate")
@@ -59,32 +81,67 @@ async def generate(
         raise HTTPException(status_code=400, detail="Rasm tanlanmagan.")
     if len(raw) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail=f"Rasm hajmi {MAX_UPLOAD_MB} MB dan oshmasin.")
-
-    space_id = os.getenv("HF_SPACE_ID", "").strip()
-    hf_token = os.getenv("HF_TOKEN", "").strip()
-    if not space_id or not hf_token:
-        raise HTTPException(
-            status_code=503,
-            detail="Hugging Face xizmati sozlanmagan. HF_SPACE_ID va HF_TOKEN kiriting.",
-        )
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="Gemini API kaliti sozlanmagan. Render Environment'da GEMINI_API_KEY kiriting.")
 
     original = prepare_image(raw)
-    temp_path = None
+    source = io.BytesIO()
+    original.save(source, format="PNG", optimize=True)
+    encoded = base64.b64encode(source.getvalue()).decode("ascii")
+
+    prompt = (
+        "Edit the supplied portrait photo into a realistic school-uniform portrait. "
+        f"Uniform style: {STYLES[style]}. "
+        "Preserve the same person and make the smallest possible edit. "
+        "Keep the person's face, facial features, identity, expression, hairstyle, ears, "
+        "skin tone, head position, body proportions, hands, pose, camera angle, background "
+        "and lighting unchanged. Change clothing only. Do not beautify, retouch, age, "
+        "recreate, or alter the face. Keep the clothing naturally fitted and appropriate "
+        "for a school student. Do not add logos, badges, text, or watermarks. "
+        "Return one photorealistic edited image in portrait 3:4 composition."
+    )
+
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{GEMINI_MODEL}:generateContent"
+    )
+    request_body = {
+        "contents": [{
+            "parts": [
+                {"inline_data": {"mime_type": "image/png", "data": encoded}},
+                {"text": prompt},
+            ]
+        }],
+        "generationConfig": {
+            "responseModalities": ["IMAGE"],
+            "imageConfig": {"aspectRatio": "3:4", "imageSize": "1K"},
+        },
+    }
+
     try:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
-            original.save(temp_file, format="PNG")
-            temp_path = temp_file.name
+        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
+            response = await client.post(
+                endpoint,
+                headers={
+                    "x-goog-api-key": GEMINI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=request_body,
+            )
 
-        client = Client(space_id, hf_token=hf_token, verbose=False)
-        encoded = client.predict(
-            handle_file(temp_path),
-            style,
-            api_name="/generate",
-        )
-        if not isinstance(encoded, str) or not encoded:
-            raise RuntimeError("Image provider returned an empty result.")
+        if response.status_code == 429:
+            raise HTTPException(status_code=429, detail="Gemini so'rov limiti tugadi. Birozdan keyin qayta urinib ko'ring.")
+        if response.status_code in (401, 403):
+            raise HTTPException(status_code=502, detail="Gemini API kaliti yoki billing sozlamasini tekshirish kerak.")
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502, detail="Gemini AI xizmati so'rovni qabul qilmadi. Model va API sozlamalarini tekshiring.")
 
-        generated = Image.open(io.BytesIO(base64.b64decode(encoded))).convert("RGB")
+        try:
+            generated_bytes = extract_generated_image(response.json())
+            generated = Image.open(io.BytesIO(generated_bytes)).convert("RGB")
+        except (ValueError, KeyError, OSError, UnidentifiedImageError):
+            raise HTTPException(status_code=502, detail="Gemini javobida tayyor rasm topilmadi. Boshqa surat bilan qayta urinib ko'ring.")
+
         generated = ImageOps.fit(generated, (768, 1024), method=Image.Resampling.LANCZOS)
         output = io.BytesIO()
         generated.save(output, format="JPEG", quality=94, optimize=True)
@@ -94,18 +151,14 @@ async def generate(
             "mime_type": "image/jpeg",
             "width": 768,
             "height": 1024,
-            "notice": "AI natijasi asl suratdan biroz farq qilishi mumkin. Yuzni asl surat bilan tekshiring.",
+            "notice": "AI natijasi asl suratdan farq qilishi mumkin. Yuz va boshqa detallarni asl surat bilan solishtiring.",
         }
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail="AI servisida xatolik yuz berdi. Hugging Face Space holati, token va kunlik GPU limitini tekshiring.",
-        ) from exc
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
+    except httpx.TimeoutException as exc:
+        raise HTTPException(status_code=504, detail="Gemini javobi kutilgan vaqtda kelmadi. Birozdan keyin qayta urinib ko'ring.") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Gemini xizmatiga ulanib bo'lmadi. Keyinroq qayta urinib ko'ring.") from exc
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
