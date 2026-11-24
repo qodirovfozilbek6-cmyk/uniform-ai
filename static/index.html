@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d18">
+  <meta name="description" content="UNIFORM AI — maktab formasi bilan professional portret yarating.">
+  <title>UNIFORM AI — School Portrait Studio</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">U</span><span>UNIFORM<span class="brand-light">.AI</span></span></a>
+    <span class="top-tag"><i></i> AI PORTRAIT STUDIO</span>
+  </header>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow"><span></span> YOUR SCHOOL PORTRAIT, REIMAGINED</div>
+      <h1>Yangi forma.<br><span>O‘sha o‘zingiz.</span></h1>
+      <p class="hero-copy">Suratingizni yuklang. AI maktab formasini moslashtirsin — yuzingiz va tabiiy ko‘rinishingizni imkon qadar asrab.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="panel upload-panel">
+        <div class="panel-heading"><div><span class="step">01</span><h2>Surat yuklash</h2></div><span class="required">JPG · PNG · WEBP</span></div>
+        <label class="dropzone" id="dropzone" for="photoInput">
+          <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          <span class="upload-icon">↑</span>
+          <strong>Suratni shu yerga tashlang</strong>
+          <span class="muted">yoki <u>qurilmadan tanlang</u></span>
+          <span class="file-limit">Maksimal hajm: 10 MB</span>
+        </label>
+        <div class="preview-wrap hidden" id="previewWrap">
+          <img id="preview" alt="Yuklangan surat">
+          <button class="remove-photo" id="removePhoto" type="button" aria-label="Suratni olib tashlash">×</button>
+          <span class="preview-label">ASL SURAT</span>
+        </div>
+        <div class="privacy-note"><span>◈</span> Surat serverda doimiy saqlanmaydi. Faqat ruxsatingiz bor suratni yuklang.</div>
+      </div>
+
+      <div class="panel settings-panel">
+        <div class="panel-heading"><div><span class="step">02</span><h2>Forma uslubi</h2></div></div>
+        <div class="style-options">
+          <label class="style-option selected"><input type="radio" name="style" value="classic" checked><span class="radio-dot"></span><span class="style-swatch classic"></span><span class="style-text"><b>Klassik</b><small>Pidjak, oq ko‘ylak, galstuk</small></span></label>
+          <label class="style-option"><input type="radio" name="style" value="modern"><span class="radio-dot"></span><span class="style-swatch modern"></span><span class="style-text"><b>Zamonaviy</b><small>Kardigan va oq ko‘ylak</small></span></label>
+          <label class="style-option"><input type="radio" name="style" value="formal"><span class="radio-dot"></span><span class="style-swatch formal"></span><span class="style-text"><b>Rasmiy</b><small>To‘q rangli pidjak</small></span></label>
+        </div>
+        <div class="ratio-card"><div class="ratio-icon">3:4</div><div><b>Portret formati</b><small>Yakuniy rasm 768 × 1024 px</small></div><span class="check">✓</span></div>
+        <button class="generate-btn" id="generateBtn" disabled><span>AI bilan forma kiygizish</span><span>✦</span></button>
+        <p class="fine-print">Yaxshi natija uchun yuz va yelka qismi aniq ko‘ringan surat tanlang.</p>
+      </div>
+
+      <div class="panel result-panel" id="resultPanel">
+        <div class="panel-heading"><div><span class="step">03</span><h2>Natija</h2></div><span class="result-status" id="resultStatus">KUTILMOQDA</span></div>
+        <div class="result-stage" id="resultStage">
+          <div class="empty-state" id="emptyState"><div class="empty-frame"><span>✦</span></div><b>Portretingiz shu yerda</b><small>Surat yuklang va AI jarayonini boshlang</small></div>
+          <div class="loading-state hidden" id="loadingState"><div class="loader"></div><b>AI portretingizni tayyorlamoqda</b><small>Bu biroz vaqt olishi mumkin…</small></div>
+          <img id="resultImage" class="result-image hidden" alt="Maktab formasidagi tayyor portret">
+        </div>
+        <div class="result-actions hidden" id="resultActions"><button class="download-btn" id="downloadBtn">↓ <span>Rasmni saqlash</span></button><button class="secondary-btn" id="retryBtn">Qayta yaratish ↻</button></div>
+        <p class="identity-note"><span>◎</span> Yuzni asrash ustuvor. Generativ AI ayrim mayda farqlar kiritishi mumkin — natijani tekshirib oling.</p>
+      </div>
+    </section>
+    <footer><span>UNIFORM AI</span><span>Made for better school portraits</span><span>© 2026</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
