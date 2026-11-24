@@ -15,7 +15,7 @@ The model edits only a conservative torso mask to reduce changes to the head and
 
 ## 1. Create the Hugging Face Space
 1. Create or sign in to a Hugging Face account.
-2. Create a new **Gradio Space**.
+2. Create a new **Gradio Space** and set its visibility to **Private** (recommended, so strangers cannot use your inference quota).
 3. Set the Space hardware to **ZeroGPU** in its Settings.
 4. Upload the three files from the `hf_space/` folder to the root of the Space:
    - `app.py`
