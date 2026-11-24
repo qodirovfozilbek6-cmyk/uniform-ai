@@ -9,7 +9,7 @@ AI-powered school-uniform portrait editor. Upload a portrait, choose a uniform s
 
 ## Important limitations
 - Gemini image generation/editing has no free API tier. Check the current official pricing before enabling paid billing: https://ai.google.dev/gemini-api/docs/pricing/
-- The current Standard price shown for Nano Banana 2 is approximately $0.0336 per 1K output image, plus input usage. The exact current price and tiers are listed on Google's pricing page. Actual cost depends on model, output size, and current pricing.
+- The current Standard price shown for Nano Banana 2.1 is approximately $0.0336 per 1K output image, plus input usage. The exact current price and tiers are listed on Google's pricing page. Actual cost depends on model, output size, and current pricing.
 - Generative editing cannot guarantee pixel-identical identity preservation. The prompt asks Gemini to change clothing only and preserve the face, but always compare the result with the original photo.
 - Keep the API key private. Never put it in GitHub, frontend JavaScript, or chat.
 - Before making this service public, add stronger abuse protection and monitor usage. A public endpoint can consume API credits.
