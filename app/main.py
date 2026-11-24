@@ -13,7 +13,7 @@ load_dotenv()
 app = FastAPI(title="UNIFORM AI", version="2.0.0")
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-image").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-nano-banana-2.1").strip()
 GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "150"))
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 STYLES = {
@@ -45,13 +45,24 @@ def prepare_image(raw: bytes) -> Image.Image:
 
 
 def extract_generated_image(payload: dict) -> bytes:
-    candidates = payload.get("candidates") or []
-    for candidate in candidates:
-        parts = (candidate.get("content") or {}).get("parts") or []
-        for part in parts:
-            inline = part.get("inlineData") or part.get("inline_data")
-            if inline and inline.get("data"):
-                return base64.b64decode(inline["data"], validate=True)
+    direct = payload.get("output_image")
+    if isinstance(direct, dict) and direct.get("data"):
+        return base64.b64decode(direct["data"], validate=True)
+
+    for item in payload.get("output") or []:
+        if isinstance(item, dict) and item.get("type") == "image" and item.get("data"):
+            return base64.b64decode(item["data"], validate=True)
+
+    for step in payload.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        content = step.get("content")
+        if isinstance(content, dict):
+            content = [content]
+        for item in content or []:
+            if isinstance(item, dict) and item.get("type") == "image" and item.get("data"):
+                return base64.b64decode(item["data"], validate=True)
+
     raise ValueError("Gemini response did not contain an image.")
 
 
@@ -101,20 +112,18 @@ async def generate(
         "Return one photorealistic edited image in portrait 3:4 composition."
     )
 
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent"
-    )
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/interactions"
     request_body = {
-        "contents": [{
-            "parts": [
-                {"inline_data": {"mime_type": "image/png", "data": encoded}},
-                {"text": prompt},
-            ]
-        }],
-        "generationConfig": {
-            "responseModalities": ["IMAGE"],
-            "imageConfig": {"aspectRatio": "3:4", "imageSize": "1K"},
+        "model": GEMINI_MODEL,
+        "input": [
+            {"type": "text", "text": prompt},
+            {"type": "image", "mime_type": "image/png", "data": encoded},
+        ],
+        "response_format": {
+            "type": "image",
+            "mime_type": "image/png",
+            "aspect_ratio": "3:4",
+            "image_size": "1K",
         },
     }
 
@@ -125,6 +134,7 @@ async def generate(
                 headers={
                     "x-goog-api-key": GEMINI_API_KEY,
                     "Content-Type": "application/json",
+                    "Api-Revision": "2026-05-20",
                 },
                 json=request_body,
             )
