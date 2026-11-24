@@ -1,58 +1,52 @@
 # UNIFORM AI
 
-AI-powered school uniform portrait studio. Upload a portrait, choose a uniform style, generate a 3:4 result, and download it.
+AI-powered school-uniform portrait editor. Upload a portrait, choose a uniform style, generate a 3:4 result, and download it.
 
 ## Architecture
 - FastAPI + responsive HTML/CSS/JavaScript frontend on Render
-- Hugging Face Gradio Space for image inpainting
-- Stable Diffusion XL Inpainting model on Hugging Face ZeroGPU
-- Pillow image processing
+- Google Gemini API image editing using Nano Banana 2 (`gemini-3.1-flash-image`)
+- Pillow image validation, 3:4 crop, and output formatting
 
 ## Important limitations
-Hugging Face ZeroGPU is a limited free demo resource, not unlimited production hosting. Free accounts currently receive up to 5 minutes of GPU time per day, subject to queue availability and account eligibility. A generation may take a substantial portion of that quota. Limits and availability can change.
+- Gemini image generation/editing has no free API tier. Check the current official pricing before enabling paid billing: https://ai.google.dev/gemini-api/docs/pricing/
+- The current Standard price shown for Nano Banana 2 is approximately $0.067 per 1K output image, plus input usage. Actual cost depends on model, output size, and current pricing.
+- Generative editing cannot guarantee pixel-identical identity preservation. The prompt asks Gemini to change clothing only and preserve the face, but always compare the result with the original photo.
+- Keep the API key private. Never put it in GitHub, frontend JavaScript, or chat.
+- Before making this service public, add stronger abuse protection and monitor usage. A public endpoint can consume API credits.
 
-The model edits only a conservative torso mask to reduce changes to the head and face. Generative editing cannot guarantee pixel-identical identity preservation. Always compare the result with the original photo.
+## 1. Get a Gemini API key
+Create a key in Google AI Studio: https://aistudio.google.com/apikey
 
-## 1. Create the Hugging Face Space
-1. Create or sign in to a Hugging Face account.
-2. Create a new **Gradio Space** and set its visibility to **Private** (recommended, so strangers cannot use your inference quota).
-3. Set the Space hardware to **ZeroGPU** in its Settings.
-4. Upload the three files from the `hf_space/` folder to the root of the Space:
-   - `app.py`
-   - `requirements.txt`
-   - `README.md`
-5. Wait for the Space to build and become **Running**.
-6. Copy the Space ID in the form `username/space-name`.
+## 2. Configure billing carefully
+Image generation with this model is not available on the free API tier. A Google Cloud Billing account must be linked to the AI Studio project to use the paid tier. Review the billing terms and costs with a parent or guardian before enabling payment. Set a project monthly spend cap where available, and monitor Dashboard > Usage and Billing. Spend caps can have a short enforcement delay, so they are not an absolute instant stop.
 
-Free ZeroGPU hosting has eligibility requirements, including a verified email and an account at least 30 days old. If the account is not eligible, the Space may not be able to use free ZeroGPU.
+Google's billing setup guide: https://ai.google.dev/gemini-api/docs/billing
 
-## 2. Create a Hugging Face access token
-Create a token with **Read** access only. Keep it private. Do not put it in GitHub or share it in chat.
-
-## 3. Deploy the website on Render
-Create a Python web service:
+## 3. Deploy on Render
+Create or use a Python web service:
 - Build command: `pip install -r requirements.txt`
 - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 Add these Render environment variables:
-- `HF_SPACE_ID`: your Space ID, for example `username/uniform-ai-engine`
-- `HF_TOKEN`: your private Hugging Face read token
+- `GEMINI_API_KEY`: your private Google AI Studio API key
+- `GEMINI_MODEL`: `gemini-3.1-flash-image`
+- `GEMINI_TIMEOUT_SECONDS`: `150`
 - `MAX_UPLOAD_MB`: `10`
 
-Do not add an OpenAI key. The website calls the Hugging Face Space from the server; the token is never sent to the browser.
+Do not add the API key to GitHub or the browser. Render injects it into the server process.
 
 ## Run locally
 1. Python 3.11+
 2. `python -m venv .venv`
 3. Activate the environment.
 4. `pip install -r requirements.txt`
-5. Set `HF_SPACE_ID` and `HF_TOKEN` in your environment.
+5. Set the environment variables above.
 6. `uvicorn app.main:app --reload`
 
 Open http://127.0.0.1:8000
 
 ## Privacy
-The Render app processes uploads in memory and uses a temporary file that is deleted after the inference request. The image is sent to the Hugging Face Space for processing. Do not upload a photo unless you have permission to use it. Avoid sensitive photos. Review Hugging Face's current privacy and data policies before using the service.
+The server processes the upload in memory and sends the image to Google's Gemini API for editing. Do not upload a photo unless you have permission to use it. Review Google's current API data-use and privacy terms before use.
 
 ## API
 - GET `/api/health`
